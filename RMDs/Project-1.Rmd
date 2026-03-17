@@ -1,0 +1,548 @@
+---
+title: "STAT4340-Project1"
+output: html_document
+date: "2026-03-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Project 1 - Sanjit Subhash
+
+## Phase 1
+
+```{r}
+library(tidyverse)
+
+men <- read.csv("/Users/sanjitsubhash/Downloads/trainingData.csv")
+women <- read.csv("/Users/sanjitsubhash/Downloads/trainingDataWomen.csv")
+
+dim(men)
+dim(women)
+
+names(men)
+head(men, 3)
+head(women, 3)
+
+table(men$Win)
+table(women$Win)
+```
+
+The men’s dataset had 1449 observations and the women’s dataset had 961 observations. I also checked the response variable Win and found that the classes were very balanced in both datasets, which is helpful for classification modeling.
+
+## Phase 2: 
+
+```{r}
+men2 <- men %>%
+  mutate(
+    y = ifelse(Win == "A", 1, 0),
+    SeedDiff = Seed_B - Seed_A,
+    ScoreDiff = Score_A - Score_B,
+    FGMDiff = FGM_A - FGM_B,
+    FGADiff = FGA_A - FGA_B,
+    FGM3Diff = FGM3_A - FGM3_B,
+    FGA3Diff = FGA3_A - FGA3_B,
+    FTMDiff = FTM_A - FTM_B,
+    FTADiff = FTA_A - FTA_B,
+    ORDiff = OR_A - OR_B,
+    DRDiff = DR_A - DR_B,
+    AstDiff = Ast_A - Ast_B,
+    TODiff = TO_A - TO_B,
+    StlDiff = Stl_A - Stl_B,
+    BlkDiff = Blk_A - Blk_B,
+    PFDiff = PF_A - PF_B
+  ) %>%
+  select(
+    y, SeedDiff, ScoreDiff, FGMDiff, FGADiff, FGM3Diff, FGA3Diff,
+    FTMDiff, FTADiff, ORDiff, DRDiff, AstDiff, TODiff,
+    StlDiff, BlkDiff, PFDiff
+  )
+
+women2 <- women %>%
+  mutate(
+    y = ifelse(Win == "A", 1, 0),
+    SeedDiff = Seed_B - Seed_A,
+    ScoreDiff = Score_A - Score_B,
+    FGMDiff = FGM_A - FGM_B,
+    FGADiff = FGA_A - FGA_B,
+    FGM3Diff = FGM3_A - FGM3_B,
+    FGA3Diff = FGA3_A - FGA3_B,
+    FTMDiff = FTM_A - FTM_B,
+    FTADiff = FTA_A - FTA_B,
+    ORDiff = OR_A - OR_B,
+    DRDiff = DR_A - DR_B,
+    AstDiff = Ast_A - Ast_B,
+    TODiff = TO_A - TO_B,
+    StlDiff = Stl_A - Stl_B,
+    BlkDiff = Blk_A - Blk_B,
+    PFDiff = PF_A - PF_B
+  ) %>%
+  select(
+    y, SeedDiff, ScoreDiff, FGMDiff, FGADiff, FGM3Diff, FGA3Diff,
+    FTMDiff, FTADiff, ORDiff, DRDiff, AstDiff, TODiff,
+    StlDiff, BlkDiff, PFDiff
+  )
+
+head(men2, 3)
+head(women2, 3)
+
+summary(men2)
+summary(women2)
+```
+I felt this was a cleaner way to represent the matchup, since the model then focuses on how Team A compares to Team B rather than treating the raw team labels separately.
+
+## Phase 3
+
+```{r}
+
+table(men2$y)
+table(women2$y)
+
+summary(men2[, c("SeedDiff", "ScoreDiff", "AstDiff", "TODiff", "StlDiff")])
+summary(women2[, c("SeedDiff", "ScoreDiff", "AstDiff", "TODiff", "StlDiff")])
+
+hist(men2$SeedDiff, main = "Men: SeedDiff", xlab = "SeedDiff")
+hist(men2$ScoreDiff, main = "Men: ScoreDiff", xlab = "ScoreDiff")
+
+hist(women2$SeedDiff, main = "Women: SeedDiff", xlab = "SeedDiff")
+hist(women2$ScoreDiff, main = "Women: ScoreDiff", xlab = "ScoreDiff")
+
+
+boxplot(SeedDiff ~ y, data = men2, main = "Men: SeedDiff by Outcome")
+boxplot(ScoreDiff ~ y, data = men2, main = "Men: ScoreDiff by Outcome")
+
+boxplot(SeedDiff ~ y, data = women2, main = "Women: SeedDiff by Outcome")
+boxplot(ScoreDiff ~ y, data = women2, main = "Women: ScoreDiff by Outcome")
+
+cor(men2[, -1])
+cor(women2[, -1])
+```
+## Phase 4: First baseline models
+
+**(I) create factor response for caret/tree work**
+
+```{r}
+men2$y_factor <- factor(ifelse(men2$y == 1, "Awin", "Bwin"))
+women2$y_factor <- factor(ifelse(women2$y == 1, "Awin", "Bwin"))
+
+table(men2$y_factor)
+table(women2$y_factor)
+```
+
+
+**(II) Fit the first logistic regression**
+
+```{r}
+glm_men_small <- glm(
+  y ~ SeedDiff + ScoreDiff + AstDiff + TODiff + StlDiff,
+  data = men2,
+  family = binomial
+)
+
+summary(glm_men_small)
+```
+
+**(III) Get predicted probabilities and classifications**
+```{r}
+men_probs_small <- predict(glm_men_small, type = "response")
+men_pred_small <- ifelse(men_probs_small > 0.5, 1, 0)
+
+table(Predicted = men_pred_small, Actual = men2$y)
+mean(men_pred_small == men2$y)
+```
+
+**(IV) Fit the first classification tree**
+
+```{r}
+library(rpart)
+library(rpart.plot)
+
+tree_men <- rpart(
+  y_factor ~ SeedDiff + ScoreDiff + AstDiff + TODiff + StlDiff,
+  data = men2,
+  method = "class"
+)
+
+rpart.plot(tree_men)
+printcp(tree_men)
+```
+```{r}
+tree_pred_class <- predict(tree_men, type = "class")
+table(Predicted = tree_pred_class, Actual = men2$y_factor)
+mean(tree_pred_class == men2$y_factor)
+```
+
+# Phase 5: Expanded Model Comparison
+
+**Men full logistic regression**
+
+```{r}
+glm_men_full <- glm(
+  y ~ SeedDiff + ScoreDiff + FGMDiff + FGADiff + FGM3Diff + FGA3Diff +
+    FTMDiff + FTADiff + ORDiff + DRDiff + AstDiff + TODiff +
+    StlDiff + BlkDiff + PFDiff,
+  data = men2,
+  family = binomial
+)
+
+summary(glm_men_full)
+```
+
+**Men full logistic accuracy**
+```{r}
+men_probs_full <- predict(glm_men_full, type = "response")
+men_pred_full <- ifelse(men_probs_full > 0.5, 1, 0)
+
+table(Predicted = men_pred_full, Actual = men2$y)
+mean(men_pred_full == men2$y)
+```
+
+**Women full logistic regression**
+```{r}
+glm_women_full <- glm(
+  y ~ SeedDiff + ScoreDiff + FGMDiff + FGADiff + FGM3Diff + FGA3Diff +
+    FTMDiff + FTADiff + ORDiff + DRDiff + AstDiff + TODiff +
+    StlDiff + BlkDiff + PFDiff,
+  data = women2,
+  family = binomial
+)
+
+summary(glm_women_full)
+```
+
+**Women full logistic accuracy**
+```{r}
+women_probs_full <- predict(glm_women_full, type = "response")
+women_pred_full <- ifelse(women_probs_full > 0.5, 1, 0)
+
+table(Predicted = women_pred_full, Actual = women2$y)
+mean(women_pred_full == women2$y)
+```
+**Random forest models**
+```{r}
+
+library(randomForest)
+
+```
+
+**Mens Random Forest**
+
+```{r}
+set.seed(123)
+
+rf_men <- randomForest(
+  as.factor(y) ~ SeedDiff + ScoreDiff + FGMDiff + FGADiff + FGM3Diff + FGA3Diff +
+    FTMDiff + FTADiff + ORDiff + DRDiff + AstDiff + TODiff +
+    StlDiff + BlkDiff + PFDiff,
+  data = men2,
+  importance = TRUE
+)
+
+rf_men
+importance(rf_men)
+varImpPlot(rf_men)
+```
+
+**Men random forest accuracy**
+```{r}
+rf_men_pred <- predict(rf_men, type = "class")
+table(Predicted = rf_men_pred, Actual = as.factor(men2$y))
+mean(rf_men_pred == as.factor(men2$y))
+```
+
+
+**Women Random Forest**
+```{r}
+set.seed(123)
+
+rf_women <- randomForest(
+  as.factor(y) ~ SeedDiff + ScoreDiff + FGMDiff + FGADiff + FGM3Diff + FGA3Diff +
+    FTMDiff + FTADiff + ORDiff + DRDiff + AstDiff + TODiff +
+    StlDiff + BlkDiff + PFDiff,
+  data = women2,
+  importance = TRUE
+)
+
+rf_women
+importance(rf_women)
+varImpPlot(rf_women)
+```
+
+
+**Women random forest accuracy**
+```{r}
+rf_women_pred <- predict(rf_women, type = "class")
+table(Predicted = rf_women_pred, Actual = as.factor(women2$y))
+mean(rf_women_pred == as.factor(women2$y))
+```
+
+**Comparison table**
+
+```{r}
+glm_women_small <- glm(
+  y ~ SeedDiff + ScoreDiff + AstDiff + TODiff + StlDiff,
+  data = women2,
+  family = binomial
+)
+```
+
+
+```{r}
+women_probs_small <- predict(glm_women_small, type = "response")
+women_pred_small <- ifelse(women_probs_small > 0.5, 1, 0)
+```
+
+```{r}
+tree_women <- rpart(
+  y_factor ~ SeedDiff + ScoreDiff + AstDiff + TODiff + StlDiff,
+  data = women2,
+  method = "class"
+)
+```
+
+
+```{r}
+tree_women_pred <- predict(tree_women, type = "class")
+```
+
+
+```{r}
+phase5_results <- data.frame(
+  Model = c("Men Logistic Small", "Men Logistic Full", "Men Tree", "Men Random Forest",
+            "Women Logistic Small", "Women Logistic Full", "Women Tree", "Women Random Forest"),
+  Accuracy = c(
+    mean(men_pred_small == men2$y),
+    mean(men_pred_full == men2$y),
+    mean(tree_pred_class == men2$y_factor),
+    mean(rf_men_pred == as.factor(men2$y)),
+    mean(women_pred_small == women2$y),
+    mean(women_pred_full == women2$y),
+    mean(tree_women_pred == women2$y_factor),
+    mean(rf_women_pred == as.factor(women2$y))
+  )
+)
+
+phase5_results
+```
+
+I wanted to see whether using more predictors would improve the model performance compared to the smaller baseline models from Phase 4, and I also wanted to compare logistic regression against a stronger tree-based method.
+
+For the men’s data, the full logistic regression performed the best with an accuracy of about 71.4%, which was slightly better than the small logistic regression at about 70.4%. The men’s tree model had an accuracy of about 70.0%, while the men’s random forest was lower at about 68.6%. From this, I feel that logistic regression seems to be working better than the tree-based methods for the men’s dataset, at least based on the training accuracy I have so far.
+
+For the women’s data, the full logistic regression again had the best performance, with an accuracy of about 79.4%. The small logistic regression was also strong at about 78.5%, and the women’s tree model was close behind at about 78.0%. The women’s random forest had an accuracy of about 77.6%. I think this suggests that the women’s models are performing a little better overall than the men’s models, and again the logistic regression seems to be the strongest option so far.
+
+I think Phase 5 was useful because it showed that adding more predictors helped the logistic regression models a little, especially for both the men’s and women’s datasets. It also showed that even though random forest is a more flexible model, it did not outperform the logistic regression models here. At this point, the full logistic regression looks like the strongest model for both datasets, but I still want to confirm that with proper validation in the next phase instead of only relying on training accuracy.
+
+
+# Phase 6
+
+```{r}
+library(caret)
+library(rpart)
+library(randomForest)
+```
+
+```{r}
+men2$y_factor <- factor(ifelse(men2$y == 1, "Awin", "Bwin"))
+women2$y_factor <- factor(ifelse(women2$y == 1, "Awin", "Bwin"))
+```
+
+
+```{r}
+set.seed(123)
+
+ctrl <- trainControl(
+  method = "cv",
+  number = 10,
+  classProbs = TRUE,
+  summaryFunction = twoClassSummary,
+  savePredictions = "final"
+)
+```
+
+```{r}
+small_vars <- c("SeedDiff", "ScoreDiff", "AstDiff", "TODiff", "StlDiff")
+
+full_vars <- c("SeedDiff", "ScoreDiff", "FGMDiff", "FGADiff", "FGM3Diff",
+               "FGA3Diff", "FTMDiff", "FTADiff", "ORDiff", "DRDiff",
+               "AstDiff", "TODiff", "StlDiff", "BlkDiff", "PFDiff")
+```
+
+```{r}
+cv_glm_men_small <- train(
+  x = men2[, small_vars],
+  y = men2$y_factor,
+  method = "glm",
+  family = binomial,
+  metric = "ROC",
+  trControl = ctrl
+)
+```
+
+```{r}
+cv_glm_men_full <- train(
+  x = men2[, full_vars],
+  y = men2$y_factor,
+  method = "glm",
+  family = binomial,
+  metric = "ROC",
+  trControl = ctrl
+)
+```
+
+```{r}
+cv_tree_men <- train(
+  x = men2[, full_vars],
+  y = men2$y_factor,
+  method = "rpart",
+  metric = "ROC",
+  trControl = ctrl,
+  tuneLength = 10
+)
+```
+
+```{r}
+cv_rf_men <- train(
+  x = men2[, full_vars],
+  y = men2$y_factor,
+  method = "rf",
+  metric = "ROC",
+  trControl = ctrl,
+  tuneLength = 5
+)
+```
+
+```{r}
+cv_glm_women_small <- train(
+  x = women2[, small_vars],
+  y = women2$y_factor,
+  method = "glm",
+  family = binomial,
+  metric = "ROC",
+  trControl = ctrl
+)
+```
+
+```{r}
+cv_glm_women_full <- train(
+  x = women2[, full_vars],
+  y = women2$y_factor,
+  method = "glm",
+  family = binomial,
+  metric = "ROC",
+  trControl = ctrl
+)
+```
+
+
+```{r}
+cv_tree_women <- train(
+  x = women2[, full_vars],
+  y = women2$y_factor,
+  method = "rpart",
+  metric = "ROC",
+  trControl = ctrl,
+  tuneLength = 10
+)
+```
+
+
+```{r}
+cv_rf_women <- train(
+  x = women2[, full_vars],
+  y = women2$y_factor,
+  method = "rf",
+  metric = "ROC",
+  trControl = ctrl,
+  tuneLength = 5
+)
+```
+
+```{r}
+men_cv_results <- resamples(list(
+  Logistic_Small = cv_glm_men_small,
+  Logistic_Full = cv_glm_men_full,
+  Tree = cv_tree_men,
+  Random_Forest = cv_rf_men
+))
+
+summary(men_cv_results)
+bwplot(men_cv_results)
+dotplot(men_cv_results)
+```
+
+```{r}
+women_cv_results <- resamples(list(
+  Logistic_Small = cv_glm_women_small,
+  Logistic_Full = cv_glm_women_full,
+  Tree = cv_tree_women,
+  Random_Forest = cv_rf_women
+))
+
+summary(women_cv_results)
+bwplot(women_cv_results)
+dotplot(women_cv_results)
+```
+```{r}
+men_phase6_table <- data.frame(
+  Model = c("Men Logistic Small", "Men Logistic Full", "Men Tree", "Men Random Forest"),
+  ROC = c(
+    max(cv_glm_men_small$results$ROC),
+    max(cv_glm_men_full$results$ROC),
+    max(cv_tree_men$results$ROC),
+    max(cv_rf_men$results$ROC)
+  )
+)
+
+men_phase6_table
+```
+```{r}
+women_phase6_table <- data.frame(
+  Model = c("Women Logistic Small", "Women Logistic Full", "Women Tree", "Women Random Forest"),
+  ROC = c(
+    max(cv_glm_women_small$results$ROC),
+    max(cv_glm_women_full$results$ROC),
+    max(cv_tree_women$results$ROC),
+    max(cv_rf_women$results$ROC)
+  )
+)
+
+women_phase6_table
+```
+I think this was more useful than only using training accuracy because it gives a better idea of how the models might perform on new tournament matchups.
+
+For the men’s data, the full logistic regression had the best ROC at about 0.782, followed closely by the small logistic regression at 0.777. The random forest had a ROC of about 0.752, and the tree model was lowest at about 0.712. For the women’s data, the full logistic regression again had the best ROC at about 0.875, followed by the small logistic regression at 0.869, the random forest at 0.861, and the tree model at about 0.829. From these results, I think the full logistic regression is the strongest model for both datasets, so it seems like the best choice for the final model.
+
+# Phase 7
+
+## Final Men’s Model
+
+Full logistic regression
+
+##Final Women’s Model
+
+Full logistic regression
+
+```{r}
+final_model_summary <- data.frame(
+  Dataset = c("Men", "Women"),
+  Final_Model = c("Full Logistic Regression", "Full Logistic Regression"),
+  ROC = c(0.7819667, 0.8749429)
+)
+
+final_model_summary
+```
+
+I made this choice because it had the highest cross-validated ROC in both cases. For the men’s data, its ROC was about 0.782, and for the women’s data, its ROC was about 0.875. These results were better than the small logistic regression, tree, and random forest models. I think this makes the full logistic regression the strongest final model because it had the best predictive performance and is also easier to explain than the more complex tree-based models.
+
+
+# Conclusions
+
+One thing I learned from this project is that a more complex model does not always perform better. Even though I tested tree-based methods like classification trees and random forests, the logistic regression models were still stronger overall, especially when I used the full set of predictors. I think this is a good reminder that model performance should be judged by actual validation results, not just by how advanced the model seems.
+
+There are also some limitations in this project. The model only uses the variables that were included in the dataset, such as seeds and season-level average statistics. It does not include other factors that could matter in real tournament games, like injuries, recent momentum, coaching changes, or unique matchup styles. Also, tournament basketball can be unpredictable, so even a strong model will not be correct every time.
+
+If I were using this model for the actual 2026 tournament predictions, I would take the final bracket matchups and create the same difference-based predictors for each game. After that, I would plug those values into the final logistic regression model to get predicted probabilities for each team. I think this would be a clear and consistent way to apply the model, since it follows the same process I used throughout the project.
+
+In conclusion, I believe the full logistic regression was the best final model for both the men’s and women’s tournaments because it had the strongest cross-validated ROC and was also easier to interpret than the more complex tree-based models. Overall, I feel this project gave me a better understanding of how to compare classification models and how to choose a final model based on predictive performance instead of just training results.

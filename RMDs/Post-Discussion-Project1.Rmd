@@ -1,0 +1,185 @@
+---
+title: "Project1-DiscussionPost-STAT4340"
+author: "Sanjit Subhash"
+date: "2026-03-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Discussion Post
+
+## Step 1: 
+
+```{r}
+library(tidyverse)
+
+men <- read.csv("/Users/sanjitsubhash/Downloads/clemsonVmizzouMen.csv")
+women <- read.csv("/Users/sanjitsubhash/Downloads/clemsonVmizzouWomen.csv")
+```
+
+## Create the same predictors as your project
+
+```{r}
+clemson_men2 <- clemson_men %>%
+  mutate(
+    SeedDiff = Seed_B - Seed_A,
+    ScoreDiff = Score_A - Score_B,
+    FGMDiff = FGM_A - FGM_B,
+    FGADiff = FGA_A - FGA_B,
+    FGM3Diff = FGM3_A - FGM3_B,
+    FGA3Diff = FGA3_A - FGA3_B,
+    FTMDiff = FTM_A - FTM_B,
+    FTADiff = FTA_A - FTA_B,
+    ORDiff = OR_A - OR_B,
+    DRDiff = DR_A - DR_B,
+    AstDiff = Ast_A - Ast_B,
+    TODiff = TO_A - TO_B,
+    StlDiff = Stl_A - Stl_B,
+    BlkDiff = Blk_A - Blk_B,
+    PFDiff = PF_A - PF_B
+  ) %>%
+  select(
+    SeedDiff, ScoreDiff, FGMDiff, FGADiff, FGM3Diff, FGA3Diff,
+    FTMDiff, FTADiff, ORDiff, DRDiff, AstDiff, TODiff,
+    StlDiff, BlkDiff, PFDiff
+  )
+
+clemson_women2 <- clemson_women %>%
+  mutate(
+    SeedDiff = Seed_B - Seed_A,
+    ScoreDiff = Score_A - Score_B,
+    FGMDiff = FGM_A - FGM_B,
+    FGADiff = FGA_A - FGA_B,
+    FGM3Diff = FGM3_A - FGM3_B,
+    FGA3Diff = FGA3_A - FGA3_B,
+    FTMDiff = FTM_A - FTM_B,
+    FTADiff = FTA_A - FTA_B,
+    ORDiff = OR_A - OR_B,
+    DRDiff = DR_A - DR_B,
+    AstDiff = Ast_A - Ast_B,
+    TODiff = TO_A - TO_B,
+    StlDiff = Stl_A - Stl_B,
+    BlkDiff = Blk_A - Blk_B,
+    PFDiff = PF_A - PF_B
+  ) %>%
+  select(
+    SeedDiff, ScoreDiff, FGMDiff, FGADiff, FGM3Diff, FGA3Diff,
+    FTMDiff, FTADiff, ORDiff, DRDiff, AstDiff, TODiff,
+    StlDiff, BlkDiff, PFDiff
+  )
+```
+
+
+```{r}
+library(tidyverse)
+
+men_train <- read.csv("/Users/sanjitsubhash/Downloads/trainingData.csv")
+women_train <- read.csv("/Users/sanjitsubhash/Downloads/trainingDataWomen.csv")
+```
+
+
+```{r}
+men2 <- men_train %>%
+  mutate(
+    y = ifelse(Win == "A", 1, 0),
+    SeedDiff = Seed_B - Seed_A,
+    ScoreDiff = Score_A - Score_B,
+    FGMDiff = FGM_A - FGM_B,
+    FGADiff = FGA_A - FGA_B,
+    FGM3Diff = FGM3_A - FGM3_B,
+    FGA3Diff = FGA3_A - FGA3_B,
+    FTMDiff = FTM_A - FTM_B,
+    FTADiff = FTA_A - FTA_B,
+    ORDiff = OR_A - OR_B,
+    DRDiff = DR_A - DR_B,
+    AstDiff = Ast_A - Ast_B,
+    TODiff = TO_A - TO_B,
+    StlDiff = Stl_A - Stl_B,
+    BlkDiff = Blk_A - Blk_B,
+    PFDiff = PF_A - PF_B
+  ) %>%
+  select(
+    y, SeedDiff, ScoreDiff, FGMDiff, FGADiff, FGM3Diff, FGA3Diff,
+    FTMDiff, FTADiff, ORDiff, DRDiff, AstDiff, TODiff,
+    StlDiff, BlkDiff, PFDiff
+  )
+
+women2 <- women_train %>%
+  mutate(
+    y = ifelse(Win == "A", 1, 0),
+    SeedDiff = Seed_B - Seed_A,
+    ScoreDiff = Score_A - Score_B,
+    FGMDiff = FGM_A - FGM_B,
+    FGADiff = FGA_A - FGA_B,
+    FGM3Diff = FGM3_A - FGM3_B,
+    FGA3Diff = FGA3_A - FGA3_B,
+    FTMDiff = FTM_A - FTM_B,
+    FTADiff = FTA_A - FTA_B,
+    ORDiff = OR_A - OR_B,
+    DRDiff = DR_A - DR_B,
+    AstDiff = Ast_A - Ast_B,
+    TODiff = TO_A - TO_B,
+    StlDiff = Stl_A - Stl_B,
+    BlkDiff = Blk_A - Blk_B,
+    PFDiff = PF_A - PF_B
+  ) %>%
+  select(
+    y, SeedDiff, ScoreDiff, FGMDiff, FGADiff, FGM3Diff, FGA3Diff,
+    FTMDiff, FTADiff, ORDiff, DRDiff, AstDiff, TODiff,
+    StlDiff, BlkDiff, PFDiff
+  )
+```
+
+```{r}
+glm_men_small <- glm(
+  y ~ SeedDiff + ScoreDiff + AstDiff + TODiff + StlDiff,
+  data = men2,
+  family = binomial
+)
+
+glm_women_small <- glm(
+  y ~ SeedDiff + ScoreDiff + AstDiff + TODiff + StlDiff,
+  data = women2,
+  family = binomial
+)
+```
+
+
+```{r}
+men_prob <- predict(glm_men_small, newdata = clemson_men2, type = "response")
+women_prob <- predict(glm_women_small, newdata = clemson_women2, type = "response")
+
+men_prob
+women_prob
+```
+
+
+# Step 3: Predict the probabilities
+
+```{r}
+glm_men_small <- glm(
+  y ~ SeedDiff + ScoreDiff + AstDiff + TODiff + StlDiff,
+  data = men2,
+  family = binomial
+)
+
+glm_women_small <- glm(
+  y ~ SeedDiff + ScoreDiff + AstDiff + TODiff + StlDiff,
+  data = women2,
+  family = binomial
+)
+```
+
+
+```{r}
+men_prob <- predict(glm_men_small, newdata = clemson_men2, type = "response")
+women_prob <- predict(glm_women_small, newdata = clemson_women2, type = "response")
+
+men_prob
+women_prob
+```
+
+
